@@ -179,14 +179,14 @@ PK `(package, category, date)`; index on `date` and on `package`. Future-month z
 
 | Column | Type | Notes |
 |---|---|---|
-| `package` | TEXT | canonical name (PK) |
+| `package` | TEXT | canonical name (PK part 1) |
 | `package_lower` | TEXT | lowercased helper for case-insensitive joins |
-| `category` | TEXT | the package's category |
+| `category` | TEXT | the package's category (PK part 2) |
 | `download_score` | REAL | official metric: mean monthly `n_distinct_ips` over the trailing 12 complete months ending at the anchor, excluding the current partial month |
 | `total_last_month` | INTEGER | `n_downloads` in the latest complete month |
 | `total_12mo` | INTEGER | `n_downloads` summed over the trailing 12 complete months (additive) |
-| `rank_score` | INTEGER | rank by `download_score` (Bioconductor's headline order) |
-| `rank_downloads_12mo` | INTEGER | rank by `total_12mo` |
+| `rank_score` | INTEGER | rank by `download_score` within `category` (Bioconductor's headline order) |
+| `rank_downloads_12mo` | INTEGER | rank by `total_12mo` within `category` |
 | `trend` | REAL | percent change: last-3-complete-months downloads vs the prior 3; `NULL` when the prior window is 0 |
 
 There is deliberately no "12-month distinct-IP total" column. Distinct IPs are non-additive across months, so a 12-month sum would overcount. The `download_score` (an average) is the honest distinct-IP summary, exactly as Bioconductor does it.
