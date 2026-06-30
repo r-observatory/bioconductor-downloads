@@ -1,0 +1,8 @@
+*.db
+*.tab
+out/
+tmp/
+_src/
+.Rhistory
+.RData
+.Rproj.user
