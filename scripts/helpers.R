@@ -205,3 +205,30 @@ export_summary_shard <- function(path, summary) {
   DBI::dbExecute(con, "VACUUM")
   invisible(NULL)
 }
+
+# Which source files changed since the last run (added, modified, deleted)? Maps
+# are keyed by category file path; each value has a $hash identity (an HTTP ETag
+# or Last-Modified for the live source, or the pinned snapshot id for Wayback).
+diff_source_state <- function(prev_map, curr_map) {
+  added    <- setdiff(names(curr_map), names(prev_map))
+  deleted  <- setdiff(names(prev_map), names(curr_map))
+  common   <- intersect(names(prev_map), names(curr_map))
+  modified <- common[vapply(common,
+    function(n) !identical(prev_map[[n]]$hash, curr_map[[n]]$hash), logical(1))]
+  sort(unique(c(added, modified, deleted)))
+}
+
+# Carry forward the per-shard coverage map, overwriting rebuilt shards. prev may
+# be NULL (cold start).
+merge_shard_coverage <- function(prev, updates) {
+  out <- prev %||% list()
+  for (k in names(updates)) out[[k]] <- updates[[k]]
+  out
+}
+
+# Write the manifest object as pretty JSON, preserving nulls and empty arrays.
+write_manifest <- function(path, obj) {
+  writeLines(
+    jsonlite::toJSON(obj, auto_unbox = TRUE, pretty = TRUE, null = "null"),
+    path)
+}
