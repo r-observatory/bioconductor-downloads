@@ -86,6 +86,20 @@ if (file.exists(.bioc_update)) source(.bioc_update)
 fixture_path <- function(...) {
   file.path(.bioc_root, "tests", "testthat", "fixtures", ...)
 }
+
+# Shared test fixtures live in a helper-*.R file so they are visible to EVERY
+# test file (top-level defs in a test-*.R file are not shared across files).
+mk_con <- function(rows) {
+  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+  DBI::dbExecute(con, "CREATE TABLE bioc_downloads_monthly
+    (package TEXT, category TEXT, date TEXT, n_distinct_ips INTEGER, n_downloads INTEGER)")
+  DBI::dbWriteTable(con, "bioc_downloads_monthly", rows, append = TRUE)
+  con
+}
+mk_monthly <- function(date, ips, dl) {
+  data.frame(package = "p", category = "software", date = date,
+             n_distinct_ips = ips, n_downloads = dl, stringsAsFactors = FALSE)
+}
 ```
 
 - [ ] **Step 4: Create `scripts/config.R`** (constants extended in Task 10)
@@ -338,11 +352,7 @@ git commit -m "Split monthly rows from yearly 'all' rows"
 - [ ] **Step 1: Write the failing test**
 
 ```r
-mk_monthly <- function(date, ips, dl) {
-  data.frame(package = "p", category = "software", date = date,
-             n_distinct_ips = ips, n_downloads = dl, stringsAsFactors = FALSE)
-}
-
+# mk_monthly() is provided by tests/testthat/helper-setup.R (Task 1).
 test_that("drop_future_placeholders drops trailing all-zero months but keeps past zeros", {
   m <- mk_monthly(
     date = c("2026-01-01", "2025-07-01", "2026-02-01", "2026-12-01"),
@@ -529,14 +539,7 @@ git commit -m "Export year shards with monthly and yearly tables"
 - [ ] **Step 1: Write the failing test**
 
 ```r
-mk_con <- function(rows) {
-  con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
-  DBI::dbExecute(con, "CREATE TABLE bioc_downloads_monthly
-    (package TEXT, category TEXT, date TEXT, n_distinct_ips INTEGER, n_downloads INTEGER)")
-  DBI::dbWriteTable(con, "bioc_downloads_monthly", rows, append = TRUE)
-  con
-}
-
+# mk_con() is provided by tests/testthat/helper-setup.R (Task 1).
 test_that("extract_recent_monthly returns only the trailing window ending at the anchor", {
   rows <- data.frame(
     package = "p", category = "software",
