@@ -180,3 +180,28 @@ summary_sql <- function(anchor_month) {
                 ELSE NULL END AS trend
       FROM agg", a)
 }
+
+# Write a minimal SQLite file containing only the summary table (for the merger).
+export_summary_shard <- function(path, summary) {
+  if (file.exists(path)) unlink(path)
+  con <- DBI::dbConnect(RSQLite::SQLite(), path)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+  DBI::dbExecute(con, "PRAGMA journal_mode=DELETE")
+  DBI::dbExecute(con, "
+    CREATE TABLE bioc_downloads_summary (
+      package             TEXT,
+      package_lower       TEXT,
+      category            TEXT,
+      download_score      REAL,
+      total_last_month    INTEGER,
+      total_12mo          INTEGER,
+      rank_score          INTEGER,
+      rank_downloads_12mo INTEGER,
+      trend               REAL,
+      PRIMARY KEY (package, category))")
+  if (nrow(summary) > 0) {
+    DBI::dbWriteTable(con, "bioc_downloads_summary", summary, append = TRUE)
+  }
+  DBI::dbExecute(con, "VACUUM")
+  invisible(NULL)
+}
