@@ -66,3 +66,30 @@ split_monthly_yearly <- function(df) {
     stringsAsFactors = FALSE)
   list(monthly = monthly, yearly = yearly)
 }
+
+# Drop not-yet-happened future months: the current-year source pre-lists all 12
+# months, so months after the latest real-data month appear as explicit zeros.
+# Remove all-zero rows dated strictly after the latest non-zero month; keep
+# genuine past zeros (a month that really had no downloads).
+drop_future_placeholders <- function(monthly) {
+  if (nrow(monthly) == 0) return(monthly)
+  nz <- monthly$n_downloads > 0 | monthly$n_distinct_ips > 0
+  if (!any(nz)) return(monthly[0, , drop = FALSE])
+  latest <- max(monthly$date[nz])
+  keep <- !(monthly$n_downloads == 0 & monthly$n_distinct_ips == 0 &
+            monthly$date > latest)
+  monthly[keep, , drop = FALSE]
+}
+
+# The anchor for all summary windows: the latest complete month. With no
+# capture_month it is simply the latest month present. When capture_month (the
+# in-progress month for this source, "YYYY-MM") is given, it is the latest month
+# strictly before that, so a partial current month is never the anchor. The
+# source's latest present month is typically the partial month being accumulated.
+anchor_month <- function(monthly, capture_month = NA_character_) {
+  if (nrow(monthly) == 0) return(NA_character_)
+  d <- monthly$date
+  if (!is.na(capture_month)) d <- d[substr(d, 1, 7) < capture_month]
+  if (length(d) == 0) return(NA_character_)
+  max(d)
+}
