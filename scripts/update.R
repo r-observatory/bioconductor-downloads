@@ -194,3 +194,105 @@ run_update <- function(io, out_dir, force_full = FALSE) {
   write_release_notes(file.path(out_dir, "release_notes.md"), out)
   list(changed_shards = changed_shards, manifest = out)
 }
+
+with_retry <- function(expr, tries = 3L, wait = 3) {
+  for (i in seq_len(tries)) {
+    val <- tryCatch(force(expr), error = function(e) e)
+    if (!inherits(val, "error")) return(val)
+    if (i < tries) Sys.sleep(wait * i)
+  }
+  stop(val)
+}
+
+# HEAD a URL; return list(ok, etag, last_modified) without downloading the body.
+http_head <- function(url) {
+  h <- curl::new_handle(nobody = TRUE, followlocation = TRUE, timeout = 60L)
+  r <- tryCatch(curl::curl_fetch_memory(url, handle = h), error = function(e) NULL)
+  if (is.null(r) || r$status_code >= 400) return(list(ok = FALSE))
+  hdr <- curl::parse_headers_list(r$headers)
+  list(ok = TRUE, etag = hdr[["etag"]] %||% "", last_modified = hdr[["last-modified"]] %||% "")
+}
+
+default_io <- function() {
+  cts <- category_tuples()
+  state <- new.env(parent = emptyenv())
+  state$kind <- NULL; state$base <- NULL  # remembered between resolve and fetch
+
+  resolve_source <- function() {
+    # Try each candidate base: it must serve a valid (200) software file.
+    for (base in CANDIDATE_BASE_URLS) {
+      probe <- http_head(live_url(base, cts[[1]]))
+      if (isTRUE(probe$ok)) {
+        state$kind <- "live"; state$base <- base
+        sf <- list()
+        for (ct in cts) {
+          h <- http_head(live_url(base, ct))
+          id <- paste0(h$etag %||% "", "|", h$last_modified %||% "")
+          sf[[category_file(ct)]] <- list(hash = id, etag = h$etag %||% "",
+            last_modified = h$last_modified %||% "", via = "live")
+        }
+        # Live: all categories are fetched now, so the in-progress month is now.
+        return(list(kind = "live", source_files = sf,
+                    capture_month = format(Sys.time(), "%Y-%m")))
+      }
+    }
+    # Fall back to pinned Wayback snapshots.
+    if (length(WAYBACK_SNAPSHOTS) > 0) {
+      state$kind <- "wayback"; state$base <- NULL
+      sf <- list(); months <- character(0)
+      for (ct in cts) {
+        ts <- WAYBACK_SNAPSHOTS[[ct$dir]]
+        sf[[category_file(ct)]] <- list(hash = paste0("wayback:", ts),
+          via = paste0("wayback:", ts))
+        months <- c(months, paste0(substr(ts, 1, 4), "-", substr(ts, 5, 6)))
+      }
+      # Snapshots can differ per category; the earliest snapshot month is the most
+      # conservative in-progress month, so the anchor is complete for every category.
+      return(list(kind = "wayback", source_files = sf, capture_month = min(months)))
+    }
+    list(kind = "none", source_files = list(), capture_month = NULL)
+  }
+
+  fetch_sources <- function(paths, dir) {
+    stats::setNames(vapply(paths, function(p) {
+      ct <- Filter(function(x) category_file(x) == p, cts)[[1]]
+      url <- if (identical(state$kind, "live")) live_url(state$base, ct)
+             else wayback_raw_url(WAYBACK_SNAPSHOTS[[ct$dir]], ct)
+      dest <- file.path(dir, gsub("/", "_", p))
+      with_retry(utils::download.file(url, dest, mode = "wb", quiet = TRUE))
+      dest
+    }, character(1)), paths)
+  }
+
+  list(
+    release_exists = function() {
+      st <- suppressWarnings(system2("gh",
+        c("release", "view", "current", "--repo", PUBLISH_REPO),
+        stdout = FALSE, stderr = FALSE))
+      identical(as.integer(st), 0L)
+    },
+    release_download = function(pattern, dir) {
+      for (i in seq_len(3L)) {
+        st <- suppressWarnings(system2("gh",
+          c("release", "download", "current", "--repo", PUBLISH_REPO,
+            "--pattern", pattern, "--dir", dir, "--clobber"),
+          stdout = TRUE, stderr = TRUE))
+        code <- as.integer(attr(st, "status") %||% 0L)
+        if (identical(code, 0L)) return(0L)
+        if (i < 3L) Sys.sleep(3 * i)
+      }
+      code
+    },
+    resolve_source = resolve_source,
+    fetch_sources  = fetch_sources,
+    now = function() Sys.time())
+}
+
+if (sys.nframe() == 0L) {
+  args <- commandArgs(trailingOnly = TRUE)
+  out_dir    <- if (length(args) >= 1) args[1] else "out"
+  force_full <- tolower(Sys.getenv("BIOC_FORCE_REBUILD", "")) %in% c("true", "1", "yes")
+  res <- run_update(default_io(), out_dir, force_full = force_full)
+  cat("Changed shards:", if (length(res$changed_shards))
+        paste(res$changed_shards, collapse = ", ") else "(none)", "\n")
+}
