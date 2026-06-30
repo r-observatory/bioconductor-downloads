@@ -93,3 +93,47 @@ anchor_month <- function(monthly, capture_month = NA_character_) {
   if (length(d) == 0) return(NA_character_)
   max(d)
 }
+
+# Write monthly (and optionally yearly) rows to a fresh SQLite shard. Overwrites
+# any existing file, uses the published-shard PRAGMA (no WAL), and VACUUMs. The
+# yearly table is created only when yearly rows are supplied, so the recent shard
+# (monthly + summary only) can reuse this function with yearly = NULL.
+export_shard <- function(path, monthly, yearly = NULL) {
+  if (file.exists(path)) unlink(path)
+  con <- DBI::dbConnect(RSQLite::SQLite(), path)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbExecute(con, "PRAGMA journal_mode=DELETE")
+  DBI::dbExecute(con, "
+    CREATE TABLE bioc_downloads_monthly (
+      package        TEXT    NOT NULL,
+      category       TEXT    NOT NULL,
+      date           TEXT    NOT NULL,
+      n_distinct_ips INTEGER NOT NULL,
+      n_downloads    INTEGER NOT NULL,
+      PRIMARY KEY (package, category, date))")
+  DBI::dbExecute(con, "CREATE INDEX idx_bdm_date ON bioc_downloads_monthly(date)")
+  DBI::dbExecute(con, "CREATE INDEX idx_bdm_pkg  ON bioc_downloads_monthly(package)")
+  if (nrow(monthly) > 0) {
+    DBI::dbWriteTable(con, "bioc_downloads_monthly",
+      monthly[c("package", "category", "date", "n_distinct_ips", "n_downloads")],
+      append = TRUE)
+  }
+
+  if (!is.null(yearly) && nrow(yearly) > 0) {
+    DBI::dbExecute(con, "
+      CREATE TABLE bioc_downloads_yearly (
+        package             TEXT    NOT NULL,
+        category            TEXT    NOT NULL,
+        year                INTEGER NOT NULL,
+        n_distinct_ips_year INTEGER,
+        n_downloads_year    INTEGER,
+        PRIMARY KEY (package, category, year))")
+    DBI::dbWriteTable(con, "bioc_downloads_yearly",
+      yearly[c("package", "category", "year", "n_distinct_ips_year", "n_downloads_year")],
+      append = TRUE)
+  }
+
+  DBI::dbExecute(con, "VACUUM")
+  invisible(NULL)
+}
