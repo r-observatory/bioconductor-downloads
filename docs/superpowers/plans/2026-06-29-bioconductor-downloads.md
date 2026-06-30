@@ -20,7 +20,7 @@
 - `download_score` = mean of monthly `n_distinct_ips` over the trailing 12 complete months ending at the anchor, i.e. `SUM(n_distinct_ips over 12 months) / 12.0`. The anchor is the latest complete month in the data (not "today").
 - `RECENT_MONTHS = 36`. `trend` = percent change of the last 3 complete months of downloads vs the prior 3; `NULL` when the prior window is 0.
 - Published shards: `PRAGMA journal_mode=DELETE`, then `VACUUM` at export.
-- Style for all generated files and commit messages: no em dashes, no hard-wrapped prose. Commit messages never reference a plan, spec, stage, or implementation notes.
+- Style: markdown and prose docs use no em dashes and no hard-wrapped paragraphs. Source code (including comments) follows the r2u-downloads/cran-downloads house style, which wraps comments near 80 columns; keep all code free of em dashes. Commit messages use no em dashes and never reference a plan, spec, stage, or implementation notes.
 - License: MIT for pipeline code.
 
 ## File Structure
