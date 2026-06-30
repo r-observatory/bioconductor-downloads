@@ -232,3 +232,55 @@ write_manifest <- function(path, obj) {
     jsonlite::toJSON(obj, auto_unbox = TRUE, pretty = TRUE, null = "null"),
     path)
 }
+
+# Canonical live URL for a category's aggregate file under a base such as
+# "https://bioconductor.org/packages/stats/".
+live_url <- function(base, ct) paste0(base, category_file(ct))
+
+# Internet Archive raw ("id_") snapshot URL for a category's canonical file.
+wayback_raw_url <- function(ts, ct) {
+  paste0("http://web.archive.org/web/", ts, "id_/",
+         "https://bioconductor.org/packages/stats/", category_file(ct))
+}
+
+# Render the GitHub release body (markdown) from a manifest object, so the release
+# page is self-describing (freshness, source, what changed, per-shard coverage).
+write_release_notes <- function(path, manifest) {
+  ts <- function(s) if (is.null(s) || is.na(s)) "n/a" else sub("Z$", " UTC", sub("T", " ", s))
+  big <- function(x) if (is.null(x) || length(x) == 0 || is.na(x)) "0" else
+    formatC(as.numeric(x), format = "d", big.mark = ",")
+  cs <- manifest$changed_shards
+  changed <- if (length(cs) == 0) "none (no source change since last run)" else
+    paste(unlist(cs), collapse = ", ")
+  dthrough <- manifest$data_through$monthly %||% "n/a"
+
+  lines <- c(
+    "Aggregated Bioconductor package download statistics, sourced from the Bioconductor download-stats `.tab` files. Counts are monthly, version-agnostic, and report both distinct IPs and downloads; they are not comparable to CRAN cranlogs or r2u counts. See the [README](https://github.com/r-observatory/bioconductor-downloads#readme) for the full caveats.",
+    "",
+    "This is a single rolling release. Assets are SQLite shards: per-year archives (`bioconductor-YYYY.db`), a rolling 36-month window (`bioconductor-recent.db`), and a summary-only file (`bioconductor-summary.db`), alongside `manifest.json`. Each run replaces only the shards that changed.",
+    "",
+    "| | |",
+    "|---|---|",
+    sprintf("| **Last checked** | %s |", ts(manifest$last_checked)),
+    sprintf("| **Source this run** | %s |", manifest$source_kind %||% "n/a"),
+    sprintf("| **Data through** | %s |", dthrough),
+    sprintf("| **Changed this run** | %s |", changed),
+    "",
+    "## Shard coverage",
+    "",
+    "| Shard | Rows | From | To |",
+    "|---|---:|---|---|")
+  shards <- manifest$shards %||% list()
+  for (nm in sort(names(shards))) {
+    s <- shards[[nm]]
+    lines <- c(lines, sprintf("| `%s` | %s | %s | %s |",
+      nm, big(s$rows), s$date_min %||% "n/a", s$date_max %||% "n/a"))
+  }
+  lines <- c(lines, "",
+    "_Fetch the rolling 36-month window:_",
+    "```bash",
+    "gh release download current --repo r-observatory/bioconductor-downloads --pattern bioconductor-recent.db",
+    "```")
+  writeLines(lines, path)
+  invisible(NULL)
+}
