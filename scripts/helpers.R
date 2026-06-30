@@ -149,3 +149,34 @@ extract_recent_monthly <- function(con, anchor_month, months = 36L) {
      WHERE date >= date('%s','-%d months') AND date <= '%s'
      ORDER BY package, category, date", a, as.integer(months) - 1L, a))
 }
+
+# Per-package summary over bioc_downloads_monthly, restricted to the trailing 12
+# complete months ending at anchor_month. download_score is the Bioconductor
+# headline: the average of monthly distinct IPs over those 12 months (sum / 12,
+# an average of monthly figures, NOT a deduplicated total). Ranks are computed
+# WITHIN each category (annotation traffic dwarfs software, so a global rank would
+# be misleading and unlike Bioconductor's own per-category scores). trend compares
+# the last 3 months of downloads to the prior 3, NULL when the prior window is 0.
+summary_sql <- function(anchor_month) {
+  a <- format(as.Date(anchor_month), "%Y-%m-%d")
+  sprintf("
+    WITH agg AS (
+      SELECT package, category, LOWER(package) AS package_lower,
+        ROUND(SUM(n_distinct_ips) / 12.0, 2) AS download_score,
+        SUM(CASE WHEN date = '%1$s' THEN n_downloads ELSE 0 END) AS total_last_month,
+        SUM(n_downloads) AS total_12mo,
+        SUM(CASE WHEN date >= date('%1$s','-2 months') THEN n_downloads ELSE 0 END) AS last_3mo,
+        SUM(CASE WHEN date >= date('%1$s','-5 months')
+                  AND date <= date('%1$s','-3 months') THEN n_downloads ELSE 0 END) AS prev_3mo
+      FROM bioc_downloads_monthly
+      WHERE date >= date('%1$s','-11 months') AND date <= '%1$s'
+      GROUP BY package, category)
+    SELECT package, package_lower, category, download_score,
+           total_last_month, total_12mo,
+           RANK() OVER (PARTITION BY category ORDER BY download_score DESC) AS rank_score,
+           RANK() OVER (PARTITION BY category ORDER BY total_12mo     DESC) AS rank_downloads_12mo,
+           CASE WHEN prev_3mo > 0
+                THEN ROUND((last_3mo * 1.0 / prev_3mo - 1.0) * 100.0, 2)
+                ELSE NULL END AS trend
+      FROM agg", a)
+}
