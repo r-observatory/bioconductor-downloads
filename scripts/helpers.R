@@ -137,3 +137,15 @@ export_shard <- function(path, monthly, yearly = NULL) {
   DBI::dbExecute(con, "VACUUM")
   invisible(NULL)
 }
+
+# The trailing N-month window of monthly rows, anchored to anchor_month (the
+# latest data month), NOT today, because the source lags. months = 36 spans
+# anchor and the 35 months before it.
+extract_recent_monthly <- function(con, anchor_month, months = 36L) {
+  a <- format(as.Date(anchor_month), "%Y-%m-%d")
+  DBI::dbGetQuery(con, sprintf("
+    SELECT package, category, date, n_distinct_ips, n_downloads
+      FROM bioc_downloads_monthly
+     WHERE date >= date('%s','-%d months') AND date <= '%s'
+     ORDER BY package, category, date", a, as.integer(months) - 1L, a))
+}
