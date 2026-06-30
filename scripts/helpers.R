@@ -35,3 +35,34 @@ parse_stats_tab <- function(text, category) {
     n_downloads    = as.integer(df$Nb_of_downloads),
     stringsAsFactors = FALSE)
 }
+
+# Map a month abbreviation (Jan..Dec) and year to a first-of-month ISO date.
+month_to_date <- function(year, token) {
+  mi <- match(token, month.abb)
+  sprintf("%04d-%02d-01", as.integer(year), mi)
+}
+
+# Split a parsed stats frame into monthly rows (Month in Jan..Dec, dated to the
+# first of the month) and yearly rows (the literal Month == "all" aggregate). The
+# yearly distinct-IP value is non-additive, so it is carried verbatim from the
+# "all" row, never recomputed from the months.
+split_monthly_yearly <- function(df) {
+  is_all <- df$month_token == "all"
+  mdf <- df[!is_all, , drop = FALSE]
+  ydf <- df[is_all, , drop = FALSE]
+  monthly <- data.frame(
+    package        = mdf$package,
+    category       = mdf$category,
+    date           = month_to_date(mdf$year, mdf$month_token),
+    n_distinct_ips = mdf$n_distinct_ips,
+    n_downloads    = mdf$n_downloads,
+    stringsAsFactors = FALSE)
+  yearly <- data.frame(
+    package             = ydf$package,
+    category            = ydf$category,
+    year                = ydf$year,
+    n_distinct_ips_year = ydf$n_distinct_ips,
+    n_downloads_year    = ydf$n_downloads,
+    stringsAsFactors = FALSE)
+  list(monthly = monthly, yearly = yearly)
+}
