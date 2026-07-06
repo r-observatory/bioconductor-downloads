@@ -1,11 +1,14 @@
 # scripts/config.R: pipeline constants (sourced by helpers.R consumers and update.R).
 
-# Ordered candidate base URLs for the live source. The canonical path is probed
-# first because the bio-web-stats replacement reports on www.bioconductor.org and
-# is byte-for-byte identical, so the canonical path is most likely restored.
+# Ordered candidate base URLs for the live source, probed first to last. As of
+# 2026-07 the bio-web-stats replacement (github.com/Bioconductor/bio-web-stats, a
+# Waitress/WSGI service behind CloudFront) serves byte-identical .tab files at the
+# canonical path, so it is probed first. master.bioconductor.org is the identical
+# origin mirror (not CloudFront-cached), kept only as a fallback. The former
+# stats.bioconductor.org migration host stayed NXDOMAIN and is intentionally dropped.
 CANDIDATE_BASE_URLS <- c(
   "https://bioconductor.org/packages/stats/",
-  "https://stats.bioconductor.org/packages/stats/"
+  "https://master.bioconductor.org/packages/stats/"
 )
 
 # Pinned Internet Archive raw snapshots per category dir, used while the canonical
