@@ -135,7 +135,7 @@ Yearly aggregates from the oldstats `all` rows. Columns: `package` (TEXT), `cate
 
 #### `bioc_oldstats_summary`
 
-One row per package and category, rolled up over all available years. Columns: `package` (TEXT), `category` (TEXT), `total_downloads` (INTEGER), `total_distinct_ips` (INTEGER), `origin` (TEXT).
+One row per package and category, rolled up over all available years. Columns: `package` (TEXT), `category` (TEXT), `origin` (TEXT), `total_downloads` (INTEGER), `months_active` (INTEGER), `first_month` (TEXT), `last_month` (TEXT).
 
 #### The `origin` column
 
