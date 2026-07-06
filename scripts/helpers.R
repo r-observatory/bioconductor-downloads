@@ -331,7 +331,7 @@ oldstats_rollup <- function(monthly) {
     nz  <- sub[sub$n_downloads > 0, , drop = FALSE]
     data.frame(
       package = sub$package[1], category = sub$category[1], origin = sub$origin[1],
-      total_downloads = sum(sub$n_downloads),
+      total_downloads = as.integer(sum(sub$n_downloads)),
       months_active = nrow(nz),
       first_month = if (nrow(nz)) min(nz$date) else NA_character_,
       last_month  = if (nrow(nz)) max(nz$date) else NA_character_,
