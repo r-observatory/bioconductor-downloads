@@ -26,3 +26,21 @@ WAYBACK_SNAPSHOTS <- list(
 )
 
 RECENT_MONTHS <- 36L
+
+# One-time frozen oldstats archive (2014 through April 2025). Candidate bases are
+# tried in order: the canonical oldstats tree first, then a third-party mirror.
+OLDSTATS_CANDIDATE_BASES <- c(
+  "https://bioconductor.org/packages/oldstats/",
+  "https://mirrors.dotsrc.org/bioconductor-releases/oldstats/"
+)
+
+# Roster sources for origin classification (bioc vs cran). The four current-release
+# VIEWS files are the only source that lists traditional annotation packages; the
+# removed-packages page adds historical names no longer in the current release.
+BIOC_VIEWS_URLS <- c(
+  "https://bioconductor.org/packages/release/bioc/VIEWS",
+  "https://bioconductor.org/packages/release/data/annotation/VIEWS",
+  "https://bioconductor.org/packages/release/data/experiment/VIEWS",
+  "https://bioconductor.org/packages/release/workflows/VIEWS"
+)
+BIOC_REMOVED_PACKAGES_URL <- "https://bioconductor.org/about/removed-packages/"

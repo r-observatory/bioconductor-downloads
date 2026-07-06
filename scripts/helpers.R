@@ -284,3 +284,23 @@ write_release_notes <- function(path, manifest) {
   writeLines(lines, path)
   invisible(NULL)
 }
+
+# Extract the Package names from a Bioconductor VIEWS file (DCF text). Returns a
+# sorted unique character vector.
+parse_views_packages <- function(text) {
+  lines <- strsplit(text, "\n", fixed = TRUE)[[1]]
+  pk <- grep("^Package:[[:space:]]*", lines, value = TRUE)
+  sort(unique(trimws(sub("^Package:[[:space:]]*", "", pk))))
+}
+
+# Extract package names from the Bioconductor removed-packages HTML page. Parse
+# BOTH anchor hrefs (.../html/<name>.html) and bare <li><name></li> items, because
+# some legacy entries appear only as bare list items. Returns sorted unique names.
+parse_removed_packages <- function(html) {
+  a <- regmatches(html, gregexpr(
+    "/packages/[^/]+/[a-z/]+/html/[A-Za-z0-9._]+\\.html", html))[[1]]
+  a_names <- sub(".*/html/([A-Za-z0-9._]+)\\.html$", "\\1", a)
+  li <- regmatches(html, gregexpr("<li>[A-Za-z0-9._]+</li>", html))[[1]]
+  li_names <- sub("^<li>([A-Za-z0-9._]+)</li>$", "\\1", li)
+  sort(unique(c(a_names, li_names)))
+}
