@@ -304,3 +304,10 @@ parse_removed_packages <- function(html) {
   li_names <- sub("^<li>([A-Za-z0-9._]+)</li>$", "\\1", li)
   sort(unique(c(a_names, li_names)))
 }
+
+# Tag each package name as "bioc" (present in the Bioconductor roster, including
+# removed packages) or "cran" (a CRAN package seen only via the Bioconductor
+# mirror). Exact case-sensitive membership; roster presence wins on collision.
+classify_origin <- function(names, bioc_roster) {
+  ifelse(names %in% bioc_roster, "bioc", "cran")
+}
