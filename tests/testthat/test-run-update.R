@@ -74,8 +74,8 @@ test_that("run_update carries forward a prior oldstats manifest block", {
   man <- jsonlite::fromJSON(man_path, simplifyVector = FALSE)
   man$oldstats <- list(frozen_through = "2025-04-01", rows = 999L)
   write_manifest(man_path, man)
-  # A second run must preserve the oldstats block.
-  run_update(io, out)
+  # A second run (forced full rebuild) must preserve the oldstats block.
+  run_update(io, out, force_full = TRUE)
   man2 <- jsonlite::fromJSON(man_path, simplifyVector = FALSE)
   expect_equal(man2$oldstats$frozen_through, "2025-04-01")
   expect_equal(man2$oldstats$rows, 999L)
