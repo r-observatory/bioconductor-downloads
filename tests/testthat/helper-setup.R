@@ -9,6 +9,9 @@ source(file.path(.bioc_root, "scripts", "helpers.R"))
 .bioc_update <- file.path(.bioc_root, "scripts", "update.R")
 if (file.exists(.bioc_update)) source(.bioc_update)
 
+.bioc_bootstrap <- file.path(.bioc_root, "scripts", "bootstrap-from-oldstats.R")
+if (file.exists(.bioc_bootstrap)) source(.bioc_bootstrap)
+
 fixture_path <- function(...) {
   file.path(.bioc_root, "tests", "testthat", "fixtures", ...)
 }
