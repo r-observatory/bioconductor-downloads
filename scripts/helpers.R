@@ -343,3 +343,64 @@ oldstats_rollup <- function(monthly) {
   rownames(out) <- NULL
   out
 }
+
+# Write the frozen oldstats archive DB with the three bioc_oldstats_* tables.
+# Overwrites any existing file; uses the published-shard PRAGMA and VACUUM.
+export_oldstats_shard <- function(path, monthly, yearly, summary) {
+  if (file.exists(path)) unlink(path)
+  con <- DBI::dbConnect(RSQLite::SQLite(), path)
+  on.exit(DBI::dbDisconnect(con), add = TRUE)
+
+  DBI::dbExecute(con, "PRAGMA journal_mode=DELETE")
+  DBI::dbExecute(con, "
+    CREATE TABLE bioc_oldstats_monthly (
+      package        TEXT    NOT NULL,
+      category       TEXT    NOT NULL,
+      date           TEXT    NOT NULL,
+      origin         TEXT    NOT NULL,
+      n_distinct_ips INTEGER NOT NULL,
+      n_downloads    INTEGER NOT NULL,
+      PRIMARY KEY (package, category, date))")
+  DBI::dbExecute(con, "CREATE INDEX idx_bom_date   ON bioc_oldstats_monthly(date)")
+  DBI::dbExecute(con, "CREATE INDEX idx_bom_pkg    ON bioc_oldstats_monthly(package)")
+  DBI::dbExecute(con, "CREATE INDEX idx_bom_origin ON bioc_oldstats_monthly(origin)")
+  if (nrow(monthly) > 0) {
+    DBI::dbWriteTable(con, "bioc_oldstats_monthly",
+      monthly[c("package", "category", "date", "origin",
+                "n_distinct_ips", "n_downloads")], append = TRUE)
+  }
+
+  DBI::dbExecute(con, "
+    CREATE TABLE bioc_oldstats_yearly (
+      package             TEXT    NOT NULL,
+      category            TEXT    NOT NULL,
+      year                INTEGER NOT NULL,
+      origin              TEXT    NOT NULL,
+      n_distinct_ips_year INTEGER,
+      n_downloads_year    INTEGER,
+      PRIMARY KEY (package, category, year))")
+  if (nrow(yearly) > 0) {
+    DBI::dbWriteTable(con, "bioc_oldstats_yearly",
+      yearly[c("package", "category", "year", "origin",
+               "n_distinct_ips_year", "n_downloads_year")], append = TRUE)
+  }
+
+  DBI::dbExecute(con, "
+    CREATE TABLE bioc_oldstats_summary (
+      package         TEXT    NOT NULL,
+      category        TEXT    NOT NULL,
+      origin          TEXT    NOT NULL,
+      total_downloads INTEGER,
+      months_active   INTEGER,
+      first_month     TEXT,
+      last_month      TEXT,
+      PRIMARY KEY (package, category))")
+  if (nrow(summary) > 0) {
+    DBI::dbWriteTable(con, "bioc_oldstats_summary",
+      summary[c("package", "category", "origin", "total_downloads",
+                "months_active", "first_month", "last_month")], append = TRUE)
+  }
+
+  DBI::dbExecute(con, "VACUUM")
+  invisible(NULL)
+}
