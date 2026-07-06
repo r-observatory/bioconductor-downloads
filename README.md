@@ -107,6 +107,48 @@ gh release download current \
   --pattern "bioconductor-summary.db"
 ```
 
+### Frozen historical archive (bioconductor-oldstats.db)
+
+`bioconductor-oldstats.db` is a one-time frozen archive of Bioconductor mirror download logs from 2014 through April 2025, as originally published. It is built once and never updated: the daily pipeline carries its manifest block forward unchanged on every run. The archive covers all four package categories and is stored in three tables described below.
+
+```bash
+gh release download current \
+  --repo r-observatory/bioconductor-downloads \
+  --pattern "bioconductor-oldstats.db"
+```
+
+```sql
+-- Top packages by total_downloads within each origin bucket
+SELECT origin, package, total_downloads
+  FROM bioc_oldstats_summary
+ ORDER BY origin, total_downloads DESC
+ LIMIT 20;
+```
+
+#### `bioc_oldstats_monthly`
+
+Monthly download counts from the oldstats mirror logs. Columns: `package` (TEXT), `category` (TEXT), `date` (TEXT, `YYYY-MM-01`), `n_distinct_ips` (INTEGER), `n_downloads` (INTEGER), `origin` (TEXT, `bioc` or `cran`).
+
+#### `bioc_oldstats_yearly`
+
+Yearly aggregates from the oldstats `all` rows. Columns: `package` (TEXT), `category` (TEXT), `year` (INTEGER), `n_distinct_ips_year` (INTEGER), `n_downloads_year` (INTEGER), `origin` (TEXT).
+
+#### `bioc_oldstats_summary`
+
+One row per package and category, rolled up over all available years. Columns: `package` (TEXT), `category` (TEXT), `total_downloads` (INTEGER), `total_distinct_ips` (INTEGER), `origin` (TEXT).
+
+#### The `origin` column
+
+Each row carries an `origin` tag of either `bioc` or `cran`. The distinction matters:
+
+`origin = cran` rows are CRAN packages fetched through the Bioconductor mirror. This is a separate measurement from the cranlogs service and from `r-observatory/cran-downloads`: cranlogs counts downloads from the Posit (formerly RStudio) CRAN mirror, while Bioconductor's oldstats records downloads from its own mirror infrastructure. The two counts cover different populations of users and are not duplicates of each other; do not add them together or treat one as a subset of the other.
+
+`origin = bioc` rows include both current Bioconductor packages and packages that have been removed or deprecated since the data was recorded. This means you can query historical download figures for packages that no longer appear in the live Bioconductor roster. The tag is best-effort: roster membership is determined from the Bioconductor VIEWS file and the removed-packages listing at the time the archive was built.
+
+#### Caveat on historical revisions
+
+After this archive was frozen, the live Bioconductor stats source revised approximately 11% of the overlapping historical rows (mostly upward). For packages that are still active in Bioconductor, the live `bioc_downloads_monthly` and `bioc_downloads_yearly` tables are authoritative and should be preferred for any analysis of retained packages. This archive preserves the original figures as published through April 2025, which is the appropriate source when you specifically need the numbers that were originally reported or when you are analyzing packages that have since been removed.
+
 ### Manifest
 
 `manifest.json` lists which shards changed in the most recent run, the source kind (`live`, `wayback`, or `frozen`), granularities present, data coverage through date, and freshness timestamps (`last_checked`, `last_changed`). It is the authoritative record of what data is present and where it came from.

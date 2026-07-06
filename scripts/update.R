@@ -190,6 +190,8 @@ run_update <- function(io, out_dir, force_full = FALSE) {
       categories       = as.list(vapply(cts, function(ct) ct$label, character(1))),
       packages         = length(unique(summary_df$package)),
       source_rows_read = source_rows_read))
+  # Preserve the frozen oldstats archive block across runs (built once, never here).
+  if (!is.null(prev$oldstats)) out$oldstats <- prev$oldstats
   write_manifest(manifest_path, out)
   write_release_notes(file.path(out_dir, "release_notes.md"), out)
   list(changed_shards = changed_shards, manifest = out)
