@@ -64,3 +64,19 @@ test_that("run_update heartbeats when nothing changed", {
   man <- jsonlite::fromJSON(file.path(out, "manifest.json"), simplifyVector = FALSE)
   expect_equal(length(man$changed_shards), 0L)
 })
+
+test_that("run_update carries forward a prior oldstats manifest block", {
+  tmp <- withr::local_tempdir(); out <- file.path(tmp, "out")
+  io <- fake_io(tmp)
+  run_update(io, out)  # first build writes manifest.json
+  # Simulate a prior oldstats block on the release manifest.
+  man_path <- file.path(out, "manifest.json")
+  man <- jsonlite::fromJSON(man_path, simplifyVector = FALSE)
+  man$oldstats <- list(frozen_through = "2025-04-01", rows = 999L)
+  write_manifest(man_path, man)
+  # A second run must preserve the oldstats block.
+  run_update(io, out)
+  man2 <- jsonlite::fromJSON(man_path, simplifyVector = FALSE)
+  expect_equal(man2$oldstats$frozen_through, "2025-04-01")
+  expect_equal(man2$oldstats$rows, 999L)
+})
