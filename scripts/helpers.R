@@ -311,3 +311,35 @@ parse_removed_packages <- function(html) {
 classify_origin <- function(names, bioc_roster) {
   ifelse(names %in% bioc_roster, "bioc", "cran")
 }
+
+# Per-package rollup of the oldstats monthly rows, one row per (package, category).
+# months_active counts months with nonzero downloads; first_month and last_month
+# are the earliest and latest nonzero months.
+oldstats_rollup <- function(monthly) {
+  cols <- c("package", "category", "origin", "total_downloads",
+            "months_active", "first_month", "last_month")
+  if (nrow(monthly) == 0) {
+    empty <- data.frame(package = character(0), category = character(0),
+      origin = character(0), total_downloads = integer(0),
+      months_active = integer(0), first_month = character(0),
+      last_month = character(0), stringsAsFactors = FALSE)
+    return(empty[cols])
+  }
+  key <- paste(monthly$package, monthly$category, sep = "\r")
+  parts <- lapply(split(seq_len(nrow(monthly)), key), function(ix) {
+    sub <- monthly[ix, , drop = FALSE]
+    nz  <- sub[sub$n_downloads > 0, , drop = FALSE]
+    data.frame(
+      package = sub$package[1], category = sub$category[1], origin = sub$origin[1],
+      total_downloads = sum(sub$n_downloads),
+      months_active = nrow(nz),
+      first_month = if (nrow(nz)) min(nz$date) else NA_character_,
+      last_month  = if (nrow(nz)) max(nz$date) else NA_character_,
+      stringsAsFactors = FALSE)
+  })
+  out <- do.call(rbind, parts)
+  rownames(out) <- NULL
+  out <- out[order(out$category, -out$total_downloads), cols]
+  rownames(out) <- NULL
+  out
+}
