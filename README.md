@@ -253,3 +253,7 @@ Download statistics are sourced from Bioconductor's published per-category aggre
 ## License
 
 The pipeline code in this repository is proprietary. Copyright (c) 2026 HJJB, LLC. All rights reserved; see [LICENSE](LICENSE). The underlying download statistics originate from Bioconductor; please respect Bioconductor's terms when redistributing.
+
+## Feedback
+
+Found a bug, a wrong number, or a missing package? Report it at [r-observatory/feedback](https://github.com/r-observatory/feedback/issues/new/choose). All feedback about R Observatory, the site, the data, and the pipelines, is tracked in one place.
