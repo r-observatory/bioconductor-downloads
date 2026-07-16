@@ -195,10 +195,15 @@ run_update <- function(io, out_dir, force_full = FALSE) {
   if (!is.null(prev$oldstats)) out$oldstats <- prev$oldstats
   # Integrity / completeness core for the summary DB the downstream merge pulls.
   # Computed from the finalized on-disk bioconductor-summary.db (written above) so
-  # db_bytes/db_sha256 describe the exact bytes uploaded to the release. Every run
-  # that reaches here re-fetches all category source files and loads the full
-  # monthly history in memory; the summary's trailing-12-month window sits inside
-  # that complete dataset, so it is a full snapshot: complete = TRUE.
+  # db_bytes/db_sha256 describe the exact bytes uploaded to the release.
+  #
+  # complete = TRUE: the DB holds the full, non-partial dataset. Every run that
+  # reaches here re-fetches all category source files and loads the full monthly
+  # history in memory; the summary's trailing-12-month window sits inside that
+  # complete dataset (a full rebuild each run, not an incremental/partial one).
+  # Freshness is tracked separately via generated_at and the per-source-file
+  # hashes (source_files), not by this flag. A pipeline with a genuine
+  # partial/bootstrap state would derive this flag instead of hardcoding it.
   integrity_core <- summary_integrity_core(summary_out, complete = TRUE)
   write_manifest(manifest_path, out, core = integrity_core)
   write_release_notes(file.path(out_dir, "release_notes.md"), out)
